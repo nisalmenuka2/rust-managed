@@ -7,7 +7,9 @@ use std::boxed::Box;
 use alloc::boxed::Box;
 #[cfg(feature = "std")]
 use std::vec::Vec;
-#[cfg(all(feature = "alloc", not(feature = "std")))]
+#[cfg(all(feature = "collections", not(feature = "std")))]
+use collections::vec::Vec;
+#[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
 /// A managed slice.
@@ -18,7 +20,7 @@ use alloc::vec::Vec;
 ///
 /// The purpose of this enum is providing good ergonomics with `std` present while making
 /// it possible to avoid having a heap at all (which of course means that `std` is not present).
-/// To achieve this, the variants other than `Borrowed` are only available when the corresponding
+/// To achieve this, the variants other than `Borrow` are only available when the corresponding
 /// feature is opted in.
 ///
 /// A function that requires a managed object should be generic over an `Into<ManagedSlice<'a, T>>`
@@ -29,8 +31,8 @@ use alloc::vec::Vec;
 pub enum ManagedSlice<'a, T: 'a> {
     /// Borrowed variant.
     Borrowed(&'a mut [T]),
-    /// Owned variant, only available with the `std` or `alloc` feature enabled.
-    #[cfg(any(feature = "std", feature = "alloc"))]
+    /// Owned variant, only available with the `std` or `collections` feature enabled.
+    #[cfg(any(feature = "std", feature = "collections", feature = "alloc"))]
     Owned(Vec<T>)
 }
 
@@ -39,9 +41,10 @@ impl<'a, T: 'a> fmt::Debug for ManagedSlice<'a, T>
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             &ManagedSlice::Borrowed(ref x) => write!(f, "Borrowed({:?})", x),
-            #[cfg(any(feature = "std", feature = "alloc"))]
+            #[cfg(any(feature = "std", feature = "collections", feature = "alloc"))]
             &ManagedSlice::Owned(ref x)    => write!(f, "Owned({:?})", x)
         }
+
     }
 }
 
@@ -66,11 +69,11 @@ macro_rules! from_unboxed_slice {
     )
 }
 
-#[cfg(any(feature = "std", feature = "alloc"))]
+#[cfg(any(feature = "std", any(feature = "alloc", feature = "collections")))]
 from_unboxed_slice!(0,  1,   2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
                     16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31);
 
-#[cfg(any(feature = "std", feature = "alloc"))]
+#[cfg(any(feature = "std", feature = "collections", feature = "alloc"))]
 impl<T: 'static> From<Vec<T>> for ManagedSlice<'static, T> {
     fn from(value: Vec<T>) -> Self {
         ManagedSlice::Owned(value)
@@ -83,7 +86,7 @@ impl<'a, T: 'a> Deref for ManagedSlice<'a, T> {
     fn deref(&self) -> &Self::Target {
         match self {
             &ManagedSlice::Borrowed(ref value) => value,
-            #[cfg(any(feature = "std", feature = "alloc"))]
+            #[cfg(any(feature = "std", feature = "collections", feature = "alloc"))]
             &ManagedSlice::Owned(ref value) => value
         }
     }
@@ -93,7 +96,7 @@ impl<'a, T: 'a> DerefMut for ManagedSlice<'a, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
             &mut ManagedSlice::Borrowed(ref mut value) => value,
-            #[cfg(any(feature = "std", feature = "alloc"))]
+            #[cfg(any(feature = "std", feature = "collections", feature = "alloc"))]
             &mut ManagedSlice::Owned(ref mut value) => value
         }
     }
